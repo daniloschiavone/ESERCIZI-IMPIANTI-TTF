@@ -1,0 +1,59 @@
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<div class="dashboard-grid">
+  
+  <header class="header">
+    <h1>🚀 Enterprise Cloud Monitor</h1>
+    <div id="system-status" class="status-badge bg-ok">SYSTEM HEALTHY</div>
+  </header>
+
+  <section class="card controls">
+    <h3>⚙️ Configurazione</h3>
+    <div class="input-group">
+      <label>Utenti Concorrenti</label>
+      <input type="number" id="inp-users" value="500">
+    </div>
+    <div class="input-group">
+      <label>Richieste per Utente (RPM)</label>
+      <input type="number" id="inp-reqs" value="5">
+    </div>
+    <div class="input-group">
+      <label>Capacità Server (Max RPM)</label>
+      <input type="number" id="inp-cap" value="5000">
+    </div>
+    <p class="hint">Modifica i valori per simulare scenari di carico.</p>
+  </section>
+
+  <div class="kpi-container">
+    <div class="kpi-card">
+      <small>Carico Totale (RPM)</small>
+      <div class="kpi-value" id="kpi-load">0</div>
+    </div>
+    <div class="kpi-card">
+      <small>Saturazione Server</small>
+      <div class="kpi-value" id="kpi-sat">0%</div>
+    </div>
+    <div class="kpi-card">
+      <small>Margine Disponibile</small>
+      <div class="kpi-value" id="kpi-margin">0%</div>
+    </div>
+  </div>
+
+  <div class="chart-wrapper" id="chart-trend-box">
+    <canvas id="trendChart"></canvas>
+  </div>
+
+  <div class="chart-wrapper" id="chart-dist-box">
+    <canvas id="distChart"></canvas>
+  </div>
+
+  <div class="chart-wrapper" id="chart-proj-box">
+    <canvas id="projChart"></canvas>
+  </div>
+
+  <section class="card recommendations">
+    <h3>🤖 AI Advisor</h3>
+    <p id="advisor-text">Inizializzazione sistema in corso...</p>
+  </section>
+
+</div>
