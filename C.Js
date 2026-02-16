@@ -1,23 +1,55 @@
-// Variabili Globali per lo stato
-let charts = {}; 
+let charts = {};
 let historyData = [];
 let labels = [];
 
-// Impostazioni globali Chart.js
+const MAX_POINTS = 20;
+const UPDATE_INTERVAL_MS = 2000;
+
 Chart.defaults.color = '#9a9a9a';
 Chart.defaults.borderColor = '#333';
+Chart.defaults.font.family = 'Segoe UI';
 
-// Avvio al caricamento della pagina
-window.onload = function() {
+window.addEventListener('DOMContentLoaded', () => {
     initCharts();
-    // Aggiorna dashboard ogni 2 secondi
-    setInterval(updateDashboard, 2000);
-    // Primo aggiornamento immediato
+    bindInputs();
     updateDashboard();
-};
+    setInterval(updateDashboard, UPDATE_INTERVAL_MS);
+});
+
+function bindInputs() {
+    ['inp-users', 'inp-reqs', 'inp-cap'].forEach((id) => {
+        const field = document.getElementById(id);
+        if (!field) {
+            return;
+        }
+
+        field.addEventListener('input', updateDashboard);
+    });
+}
+
+function getInputValue(id, fallback = 0, min = 0) {
+    const el = document.getElementById(id);
+    if (!el) {
+        return fallback;
+    }
+
+    const value = Number.parseInt(el.value, 10);
+    if (Number.isNaN(value)) {
+        return fallback;
+    }
+
+    return Math.max(min, value);
+}
 
 function initCharts() {
-    // 1. GRAFICO LINEARE (Trend)
+    const trendCanvas = document.getElementById('trendChart');
+    const distCanvas = document.getElementById('distChart');
+    const projCanvas = document.getElementById('projChart');
+
+    if (!trendCanvas || !distCanvas || !projCanvas) {
+        return;
+    }
+
     const ctxTrend = document.getElementById('trendChart').getContext('2d');
     charts.trend = new Chart(ctxTrend, {
         type: 'line',
@@ -35,12 +67,12 @@ function initCharts() {
         options: { 
             responsive: true, 
             maintainAspectRatio: false,
+            animation: false,
             plugins: { legend: { display: false } },
-            scales: { x: { display: false } } // Nascondiamo asse X per pulizia
+            scales: { x: { display: false } }
         }
     });
 
-    // 2. GRAFICO CIAMBELLA (Distribuzione)
     const ctxDist = document.getElementById('distChart').getContext('2d');
     charts.dist = new Chart(ctxDist, {
         type: 'doughnut',
@@ -55,11 +87,11 @@ function initCharts() {
         options: { 
             responsive: true, 
             maintainAspectRatio: false,
+            animation: false,
             plugins: { legend: { position: 'bottom' } }
         }
     });
 
-    // 3. GRAFICO BARRE (Proiezione)
     const ctxProj = document.getElementById('projChart').getContext('2d');
     charts.proj = new Chart(ctxProj, {
         type: 'bar',
@@ -73,69 +105,79 @@ function initCharts() {
         },
         options: { 
             responsive: true, 
-            maintainAspectRatio: false 
+            maintainAspectRatio: false,
+            animation: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
         }
     });
 }
 
 function updateDashboard() {
-    // A. Lettura Input
-    const users = parseInt(document.getElementById('inp-users').value) || 0;
-    const reqPerUser = parseInt(document.getElementById('inp-reqs').value) || 0;
-    const capacity = parseInt(document.getElementById('inp-cap').value) || 1;
+    if (!charts.trend || !charts.dist || !charts.proj) {
+        return;
+    }
 
-    // B. Calcolo Metriche (con variazione random)
+    const users = getInputValue('inp-users', 0, 0);
+    const reqPerUser = getInputValue('inp-reqs', 0, 0);
+    const capacity = getInputValue('inp-cap', 1, 1);
+
     const baseLoad = users * reqPerUser;
-    const variance = (Math.random() * baseLoad * 0.2) - (baseLoad * 0.1); // +/- 10%
+    const variance = (Math.random() * baseLoad * 0.2) - (baseLoad * 0.1);
     const currentLoad = Math.max(0, Math.floor(baseLoad + variance));
     
     const saturation = (currentLoad / capacity) * 100;
-    const margin = 100 - saturation;
+    const margin = Math.max(0, 100 - saturation);
 
-    // C. Aggiornamento HTML
-    document.getElementById('kpi-load').innerText = currentLoad.toLocaleString();
-    document.getElementById('kpi-sat').innerText = saturation.toFixed(1) + "%";
-    document.getElementById('kpi-margin').innerText = margin.toFixed(1) + "%";
+    document.getElementById('kpi-load').innerText = currentLoad.toLocaleString('it-IT');
+    document.getElementById('kpi-sat').innerText = saturation.toFixed(1) + '%';
+    document.getElementById('kpi-margin').innerText = margin.toFixed(1) + '%';
 
-    // D. Gestione Alert (Logica IF)
     const statusBadge = document.getElementById('system-status');
     const advisor = document.getElementById('advisor-text');
 
-    if (saturation > 90) {
-        statusBadge.className = "status-badge bg-crit";
-        statusBadge.innerText = "CRITICAL";
-        advisor.innerHTML = "⚠️ <strong>AZIONE RICHIESTA:</strong> Il sistema è saturo. Rischio downtime imminente.";
+    if (saturation > 100) {
+        statusBadge.className = 'status-badge bg-crit';
+        statusBadge.innerText = 'OVERLOAD';
+        advisor.innerHTML = '🚨 <strong>EMERGENZA:</strong> Capacità superata. Necessario scaling immediato.';
+    } else if (saturation > 90) {
+        statusBadge.className = 'status-badge bg-crit';
+        statusBadge.innerText = 'CRITICAL';
+        advisor.innerHTML = '⚠️ <strong>AZIONE RICHIESTA:</strong> Il sistema è saturo. Rischio downtime imminente.';
     } else if (saturation > 70) {
-        statusBadge.className = "status-badge bg-warn";
-        statusBadge.innerText = "WARNING";
-        advisor.innerHTML = "💡 <strong>Suggerimento:</strong> Carico elevato. Considerare upgrade del piano.";
+        statusBadge.className = 'status-badge bg-warn';
+        statusBadge.innerText = 'WARNING';
+        advisor.innerHTML = '💡 <strong>Suggerimento:</strong> Carico elevato. Considerare upgrade del piano.';
     } else {
-        statusBadge.className = "status-badge bg-ok";
-        statusBadge.innerText = "HEALTHY";
-        advisor.innerHTML = "✅ <strong>Ottimale:</strong> Il sistema gestisce il carico perfettamente.";
+        statusBadge.className = 'status-badge bg-ok';
+        statusBadge.innerText = 'HEALTHY';
+        advisor.innerHTML = '✅ <strong>Ottimale:</strong> Il sistema gestisce il carico perfettamente.';
     }
 
-    // E. Aggiornamento Grafici
-    
-    // 1. Trend
-    if (labels.length > 20) { labels.shift(); historyData.shift(); }
-    labels.push(""); // Etichetta vuota per pulizia
+    if (labels.length >= MAX_POINTS) {
+        labels.shift();
+        historyData.shift();
+    }
+
+    labels.push('');
     historyData.push(currentLoad);
     charts.trend.update('none');
 
-    // 2. Distribuzione (Simulazione dinamica)
-    // Se il carico è alto, il DB soffre di più
-    const dbLoad = saturation > 80 ? 60 : 30;
-    charts.dist.data.datasets[0].data = [dbLoad, 90-dbLoad, 10];
-    charts.dist.update();
+    const dbLoad = Math.min(65, Math.max(30, 30 + Math.floor(saturation / 3.5)));
+    const mediaLoad = 10;
+    const appLoad = 100 - dbLoad - mediaLoad;
+    charts.dist.data.datasets[0].data = [dbLoad, appLoad, mediaLoad];
+    charts.dist.update('none');
 
-    // 3. Proiezione (+10% mensile composto)
-    let projData = [];
+    const projData = [];
     let temp = currentLoad;
-    for(let i=0; i<6; i++) {
+    for (let i = 0; i < 6; i++) {
         temp = temp * 1.1;
-        projData.push(temp);
+        projData.push(Math.round(temp));
     }
     charts.proj.data.datasets[0].data = projData;
-    charts.proj.update();
+    charts.proj.update('none');
 }

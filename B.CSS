@@ -1,59 +1,187 @@
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+:root {
+  --bg: #121826;
+  --card: #1d2333;
+  --card-2: #232c41;
+  --text: #e5e7ef;
+  --muted: #9aa2b2;
+  --ok: #00f2c3;
+  --warn: #ffb648;
+  --crit: #fd5d93;
+  --accent: #e14eca;
+  --border: #313a52;
+}
 
-<div class="dashboard-grid">
-  
-  <header class="header">
-    <h1>🚀 Enterprise Cloud Monitor</h1>
-    <div id="system-status" class="status-badge bg-ok">SYSTEM HEALTHY</div>
-  </header>
+* {
+  box-sizing: border-box;
+}
 
-  <section class="card controls">
-    <h3>⚙️ Configurazione</h3>
-    <div class="input-group">
-      <label>Utenti Concorrenti</label>
-      <input type="number" id="inp-users" value="500">
-    </div>
-    <div class="input-group">
-      <label>Richieste per Utente (RPM)</label>
-      <input type="number" id="inp-reqs" value="5">
-    </div>
-    <div class="input-group">
-      <label>Capacità Server (Max RPM)</label>
-      <input type="number" id="inp-cap" value="5000">
-    </div>
-    <p class="hint">Modifica i valori per simulare scenari di carico.</p>
-  </section>
+body {
+  margin: 0;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  background: radial-gradient(circle at top right, #1b2140, var(--bg) 45%);
+  color: var(--text);
+  min-height: 100vh;
+}
 
-  <div class="kpi-container">
-    <div class="kpi-card">
-      <small>Carico Totale (RPM)</small>
-      <div class="kpi-value" id="kpi-load">0</div>
-    </div>
-    <div class="kpi-card">
-      <small>Saturazione Server</small>
-      <div class="kpi-value" id="kpi-sat">0%</div>
-    </div>
-    <div class="kpi-card">
-      <small>Margine Disponibile</small>
-      <div class="kpi-value" id="kpi-margin">0%</div>
-    </div>
-  </div>
+.dashboard-grid {
+  width: min(1200px, 95vw);
+  margin: 20px auto;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(12, 1fr);
+}
 
-  <div class="chart-wrapper" id="chart-trend-box">
-    <canvas id="trendChart"></canvas>
-  </div>
+.card,
+.chart-wrapper,
+.kpi-card {
+  background: linear-gradient(180deg, var(--card), var(--card-2));
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
 
-  <div class="chart-wrapper" id="chart-dist-box">
-    <canvas id="distChart"></canvas>
-  </div>
+.header {
+  grid-column: 1 / -1;
+  padding: 16px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
 
-  <div class="chart-wrapper" id="chart-proj-box">
-    <canvas id="projChart"></canvas>
-  </div>
+.header h1 {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 600;
+}
 
-  <section class="card recommendations">
-    <h3>🤖 AI Advisor</h3>
-    <p id="advisor-text">Inizializzazione sistema in corso...</p>
-  </section>
+.status-badge {
+  padding: 7px 12px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  color: #101420;
+}
 
-</div>
+.bg-ok { background: var(--ok); }
+.bg-warn { background: var(--warn); }
+.bg-crit { background: var(--crit); }
+
+.controls {
+  grid-column: 1 / 4;
+  padding: 16px;
+}
+
+.controls h3,
+.recommendations h3,
+.chart-wrapper h3 {
+  margin: 0 0 12px;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.input-group label {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.input-group input {
+  background: #151b2a;
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 9px;
+  padding: 10px;
+  outline: none;
+}
+
+.input-group input:focus {
+  border-color: var(--accent);
+}
+
+.hint {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.kpi-container {
+  grid-column: 4 / -1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.kpi-card {
+  padding: 14px;
+}
+
+.kpi-card small {
+  color: var(--muted);
+  display: block;
+  margin-bottom: 6px;
+}
+
+.kpi-value {
+  font-size: 1.6rem;
+  font-weight: 700;
+}
+
+.chart-wrapper {
+  padding: 14px;
+  height: 260px;
+}
+
+#chart-trend-box {
+  grid-column: 1 / 9;
+}
+
+#chart-dist-box {
+  grid-column: 9 / -1;
+}
+
+#chart-proj-box {
+  grid-column: 1 / 9;
+}
+
+.recommendations {
+  grid-column: 9 / -1;
+  padding: 16px;
+}
+
+.recommendations p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+canvas {
+  width: 100% !important;
+  height: calc(100% - 28px) !important;
+}
+
+@media (max-width: 980px) {
+  .controls,
+  .kpi-container,
+  #chart-trend-box,
+  #chart-dist-box,
+  #chart-proj-box,
+  .recommendations {
+    grid-column: 1 / -1;
+  }
+
+  .kpi-container {
+    grid-template-columns: 1fr;
+  }
+
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+}
