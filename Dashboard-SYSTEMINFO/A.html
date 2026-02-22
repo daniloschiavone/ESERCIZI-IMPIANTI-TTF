@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Info Dashboard</title>
+    <link rel="stylesheet" href="./B.CSS">
+</head>
+<body>
+
+    <div class="dashboard">
+        <h1>📊 IT Capacity Dashboard</h1>
+        
+        <div class="grid" id="resourcesGrid"></div>
+
+        <div class="analysis-panel">
+            <h2>🧠 Analisi di Sistema</h2>
+            <p><strong>Collo di Bottiglia (Bottleneck):</strong> <span id="bottleneckRes">-</span></p>
+            <p><strong>Azione Suggerita:</strong> <span id="recommendationRes">-</span></p>
+        </div>
+
+        <button class="simulate-btn" id="simulateBtn" type="button">🔄 Simula Carico Server</button>
+    </div>
+    <script src="./C.JS"></script>
+</body>
+</html>
