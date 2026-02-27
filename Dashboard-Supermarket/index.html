@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Operativo M/M/c</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <h1>Dashboard Ottimizzazione Casse</h1>
+
+    <div class="dashboard">
+        <div class="card">
+            <h2>Parametri di Sistema</h2>
+            <div class="input-group">
+                <label>Arrivi (λ) [clienti/ora]</label>
+                <input type="number" id="lambda" value="20" min="1" step="1">
+            </div>
+            <div class="input-group">
+                <label>Servizio singolo (μ) [clienti/ora]</label>
+                <input type="number" id="mu" value="25" min="1" step="1">
+            </div>
+            <div class="input-group">
+                <label>Numero di Casse (c)</label>
+                <input type="number" id="c" value="1" min="1" step="1">
+            </div>
+            <div class="input-group">
+                <label>Costo mantenimento cassa [€/ora]</label>
+                <input type="number" id="cost-checkout" value="18" min="1" step="0.5">
+            </div>
+            <div class="input-group">
+                <label>Costo attesa cliente [€/cliente/ora]</label>
+                <input type="number" id="cost-wait" value="12" min="1" step="0.5">
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Indicatori di Performance (Tempo Reale)</h2>
+            <div class="metrics-grid">
+                <div class="metric" id="card-rho">
+                    <h3>Utilizzo Sistema (ρ)</h3>
+                    <div class="value" id="val-rho">0%</div>
+                </div>
+                <div class="metric">
+                    <h3>Tempo in Coda (Wq)</h3>
+                    <div class="value" id="val-wq">0 min</div>
+                </div>
+                <div class="metric">
+                    <h3>Clienti in Coda (Lq)</h3>
+                    <div class="value" id="val-lq">0</div>
+                </div>
+                <div class="metric">
+                    <h3>Tempo Totale (W)</h3>
+                    <div class="value" id="val-w">0 min</div>
+                </div>
+                <div class="metric">
+                    <h3>Costo Totale Stimato</h3>
+                    <div class="value" id="val-total-cost">0 €/h</div>
+                </div>
+                <div class="metric" id="card-recommended">
+                    <h3>Casse Ottimali</h3>
+                    <div class="value" id="val-recommended-c">1</div>
+                </div>
+            </div>
+
+            <div class="alert-box" id="dynamic-alert">Stato operativo in calcolo...</div>
+
+            <div class="chart-container">
+                <canvas id="queueChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <canvas id="staffingChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js" defer></script>
+</body>
+</html>
