@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LogisTech IT Operations Hub</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="script.js" defer></script>
+</head>
+<body>
+
+    <header>
+        <div>
+            <h1>LogisTech - IT Operations Hub</h1>
+            <div class="kpi-label">Region: eu-south-1 (Milano) | Edge: 12 FC Attivi</div>
+        </div>
+        <div class="status-badge">● SYSTEM DEGRADED (Tier 2)</div>
+    </header>
+
+    <div class="dashboard-grid">
+        <div class="card">
+            <h2>Ordini & Throughput</h2>
+            <div class="kpi-label">Ordini Elaborati Oggi</div>
+            <div class="kpi-value" id="ordini-count">485.230</div>
+            <div class="kpi-label">Target: 700.000 / giorno</div>
+            
+            <div class="mt-24">
+                <div class="metric-row">
+                    <span>API Gateway (Req/Sec)</span>
+                    <span id="api-req" class="color-success">620</span>
+                </div>
+                <div class="progress-bar-bg"><div class="progress-bar-fill" id="api-req-fill" style="width: 31%;"></div></div>
+            </div>
+
+            <div class="mini-chart-block">
+                <div class="kpi-label">Trend Throughput (ultimi 30 min)</div>
+                <div class="sparkline" id="throughput-sparkline"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Latenze Operative (SLA)</h2>
+            <div class="metric-row">
+                <span>API Tracking (GET) p95</span>
+                <span class="color-success">85 ms</span> </div>
+            <div class="metric-row">
+                <span>Aurora DB Write Latency p99</span>
+                <span class="color-warning">45 ms</span> </div>
+            <div class="metric-row">
+                <span>Kafka Event Ingestion p99</span>
+                <span class="color-success">18 ms</span> </div>
+            <div class="metric-row section-divider mt-20 pt-10">
+                <span>EDGE: Robot AMR Control Loop</span>
+                <span class="color-danger" id="robot-latency">35 ms</span> </div>
+
+            <div class="mini-chart-block">
+                <div class="kpi-label">Trend Latenza Robot (ultimi 30 min)</div>
+                <div class="sparkline" id="latency-sparkline"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Carico Infrastrutturale</h2>
+            <div class="metric-row">
+                <span>ECS Fargate (Task Attivi)</span>
+                <span>380 / 500</span>
+            </div>
+            <div class="progress-bar-bg"><div class="progress-bar-fill" id="ecs-fill" style="width: 76%;"></div></div>
+
+            <div class="metric-row mt-15">
+                <span>Aurora PostgreSQL CPU (Writer)</span>
+                <span class="color-warning" id="aurora-cpu">82%</span>
+            </div>
+            <div class="progress-bar-bg"><div class="progress-bar-fill warning" id="aurora-fill" style="width: 82%;"></div></div>
+
+            <div class="metric-row mt-15">
+                <span>Direct Connect WAN (FC Milano 1)</span>
+                <span class="color-danger" id="wan-gbps">58 Gbps</span>
+            </div>
+            <div class="progress-bar-bg"><div class="progress-bar-fill danger" id="wan-fill" style="width: 58%;"></div></div>
+
+            <div class="mini-chart-block">
+                <div class="kpi-label">Indice Saturazione Infrastruttura</div>
+                <div class="sparkline" id="load-sparkline"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Stato Code (Digitali & Fisiche)</h2>
+            <div class="metric-row">
+                <span>Kafka MSK [package-tracking]</span>
+                <span id="kafka-msg">5.890 msg/sec</span>
+            </div>
+            <div class="kpi-label mb-15">Lag consumer: 0 ms</div>
+
+            <div class="metric-row">
+                <span>DynamoDB (WCU Utilizzate)</span>
+                <span id="wcu-value">1.850 / 2.000 WCU</span>
+            </div>
+            <div class="progress-bar-bg"><div class="progress-bar-fill warning" id="wcu-fill" style="width: 92%;"></div></div>
+            
+            <div class="metric-row mt-15">
+                <span>Code Fisiche (FC Milano 1 Nastri)</span>
+                <span class="color-warning">Jam Detected</span>
+            </div>
+        </div>
+
+        <div class="card full-span">
+            <h2>Event Log & Alert Critici</h2>
+            
+            <div class="alert-item critical">
+                <div class="alert-time">Oggi, 19:42:15 CET | SOURCE: AWS Outposts FC Milano 1</div>
+                <div class="alert-msg"><strong>Robot AMR Latency Spike:</strong> Congestione WAN rilevata. Latenza controllo >12ms (35ms attuali). Robot in safety mode (0.5 m/s). <em>Mitigazione in corso: Prioritizzazione QoS.</em></div>
+            </div>
+
+            <div class="alert-item warning">
+                <div class="alert-time">Oggi, 19:38:00 CET | SOURCE: Amazon DynamoDB</div>
+                <div class="alert-msg"><strong>Throttling Warning:</strong> Consumo WCU > 90% su tabella tracking. Provisioned capacity in esaurimento (1.850 WCU). Auto-scaling innescato ma in ritardo.</div>
+            </div>
+            
+            <div class="alert-item">
+                <div class="alert-time alert-time-success">Oggi, 19:15:00 CET | SOURCE: Auto-Scaling Group</div>
+                <div class="alert-msg">ECS Fargate scale-out completato. Aggiunti 50 task per picco serale ordini.</div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
