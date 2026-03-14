@@ -1,5 +1,177 @@
 const historySize = 24;
-const customStorageKey = "logistech-custom-load-day-v1";
+const ORDERS_TARGET = 700000;
+
+/* In-memory storage per configurazione custom */
+let memoryStorage = {};
+
+/* ── Stato simulazione ── */
+let simRunning = true;
+let simIntervalId = null;
+
+/* ── Soglie per colori dinamici ── */
+const thresholds = {
+	apiReq:           { warning: 1200, danger: 1700 },
+	kafkaMsg:         { warning: 8000, danger: 9500 },
+	robotLat:         { warning: 33,   danger: 36 },
+	auroraCpu:        { warning: 82,   danger: 88 },
+	wcuPct:           { warning: 88,   danger: 94 },
+	wanGbps:          { warning: 65,   danger: 80 },
+	ecsPct:           { warning: 85,   danger: 95 },
+	apiTrackingLat:   { warning: 110,  danger: 150 },
+	auroraWriteLat:   { warning: 55,   danger: 80 },
+	kafkaIngestionLat:{ warning: 25,   danger: 40 },
+	kafkaLag:         { warning: 50,   danger: 200 }
+};
+
+/* ── Valori precedenti per delta ── */
+const prevValues = {};
+
+function getColorClass(value, key) {
+	const t = thresholds[key];
+	if (!t) return "color-success";
+	if (value >= t.danger) return "color-danger";
+	if (value >= t.warning) return "color-warning";
+	return "color-success";
+}
+
+function getBarClass(value, key) {
+	const t = thresholds[key];
+	if (!t) return "";
+	if (value >= t.danger) return "danger";
+	if (value >= t.warning) return "warning";
+	return "";
+}
+
+function applyColor(elementId, colorClass) {
+	const el = document.getElementById(elementId);
+	if (!el) return;
+	el.classList.remove("color-success", "color-warning", "color-danger");
+	el.classList.add(colorClass);
+}
+
+function applyBarColor(elementId, barClass) {
+	const el = document.getElementById(elementId);
+	if (!el) return;
+	el.classList.remove("warning", "danger");
+	if (barClass) el.classList.add(barClass);
+}
+
+/* ── Delta / trend ── */
+function renderDelta(elementId, currentValue, prevValue, invertDirection) {
+	const el = document.getElementById(elementId);
+	if (!el) return;
+
+	if (prevValue === undefined || prevValue === null) {
+		el.textContent = "--";
+		el.className = "delta-value delta-flat";
+		return;
+	}
+
+	const diff = currentValue - prevValue;
+	if (diff === 0) {
+		el.textContent = "=";
+		el.className = "delta-value delta-flat";
+		return;
+	}
+
+	const pct = prevValue !== 0 ? Math.abs((diff / prevValue) * 100).toFixed(1) : "0.0";
+	const arrow = diff > 0 ? "\u2191" : "\u2193";
+	el.textContent = `${arrow}${pct}%`;
+
+	if (diff > 0) {
+		el.className = invertDirection
+			? "delta-value delta-up positive"
+			: "delta-value delta-up";
+	} else {
+		el.className = invertDirection
+			? "delta-value delta-down positive"
+			: "delta-value delta-down";
+	}
+}
+
+/* ── Animazione count-up ── */
+let ordiniAnimFrame = null;
+let ordiniDisplayed = 0;
+
+function animateOrdini(targetValue) {
+	if (ordiniAnimFrame) cancelAnimationFrame(ordiniAnimFrame);
+
+	const start = ordiniDisplayed;
+	const diff = targetValue - start;
+	if (diff === 0) return;
+
+	const duration = 600;
+	const startTime = performance.now();
+	const el = document.getElementById("ordini-count");
+	if (!el) return;
+
+	function step(now) {
+		const elapsed = now - startTime;
+		const progress = Math.min(elapsed / duration, 1);
+		const eased = 1 - Math.pow(1 - progress, 3);
+		const current = Math.round(start + diff * eased);
+		el.textContent = current.toLocaleString("it-IT");
+		ordiniDisplayed = current;
+
+		if (progress < 1) {
+			ordiniAnimFrame = requestAnimationFrame(step);
+		}
+	}
+
+	ordiniAnimFrame = requestAnimationFrame(step);
+}
+
+/* ── Orologio live ── */
+function updateClock() {
+	const el = document.getElementById("live-clock");
+	if (!el) return;
+	const now = new Date();
+	el.textContent = now.toLocaleTimeString("it-IT", {
+		timeZone: "Europe/Rome",
+		hour: "2-digit",
+		minute: "2-digit",
+		second: "2-digit"
+	}) + " CET";
+}
+
+/* ── Timestamp ultimo aggiornamento ── */
+function updateLastUpdateTimestamp() {
+	const el = document.getElementById("last-update");
+	if (!el) return;
+	const now = new Date();
+	el.textContent = "Aggiornato " + now.toLocaleTimeString("it-IT", {
+		timeZone: "Europe/Rome",
+		hour: "2-digit",
+		minute: "2-digit",
+		second: "2-digit"
+	});
+}
+
+/* ── Play / Pause ── */
+function toggleSimulation() {
+	simRunning = !simRunning;
+	const icon = document.getElementById("sim-toggle-icon");
+	const label = document.getElementById("sim-toggle-label");
+	const btn = document.getElementById("sim-toggle");
+
+	if (simRunning) {
+		icon.textContent = "\u23F8";
+		label.textContent = "Pausa";
+		btn.classList.remove("paused");
+		simIntervalId = setInterval(updateDashboard, 2000);
+		updateDashboard();
+	} else {
+		icon.textContent = "\u25B6";
+		label.textContent = "Riprendi";
+		btn.classList.add("paused");
+		if (simIntervalId) {
+			clearInterval(simIntervalId);
+			simIntervalId = null;
+		}
+	}
+}
+
+/* ── Config e scenari ── */
 
 const defaultCustomDayConfig = {
 	label: "Custom Load Day",
@@ -14,6 +186,14 @@ const defaultCustomDayConfig = {
 		ecsUsed: [320, 390],
 		ordersIncrement: [3, 8]
 	}
+};
+
+/* Range latenze SLA per scenario */
+const slaRanges = {
+	"custom-day":    { apiTracking: [70, 95],  auroraWrite: [30, 48], kafkaIngestion: [12, 20], kafkaLag: [0, 5] },
+	"black-friday":  { apiTracking: [120, 180], auroraWrite: [60, 100], kafkaIngestion: [28, 50], kafkaLag: [80, 350] },
+	"prime-day":     { apiTracking: [100, 145], auroraWrite: [48, 75], kafkaIngestion: [22, 38], kafkaLag: [30, 150] },
+	"big-deal-days": { apiTracking: [85, 120],  auroraWrite: [38, 60], kafkaIngestion: [16, 28], kafkaLag: [5, 60] }
 };
 
 function cloneConfig(value) {
@@ -166,12 +346,7 @@ function getNowTimeLabel(source) {
 
 function loadCustomDayConfig() {
 	try {
-		const savedRaw = localStorage.getItem(customStorageKey);
-		if (!savedRaw) {
-			return cloneConfig(defaultCustomDayConfig);
-		}
-
-		const saved = JSON.parse(savedRaw);
+		const saved = memoryStorage.customConfig;
 		if (!saved || typeof saved !== "object" || !saved.ranges) {
 			return cloneConfig(defaultCustomDayConfig);
 		}
@@ -190,24 +365,19 @@ function loadCustomDayConfig() {
 }
 
 function saveCustomDayConfig(config) {
-	localStorage.setItem(customStorageKey, JSON.stringify(config));
+	memoryStorage.customConfig = cloneConfig(config);
 }
 
 function setFeedback(message, isError = false) {
 	const feedback = document.getElementById("custom-feedback");
-	if (!feedback) {
-		return;
-	}
-
+	if (!feedback) return;
 	feedback.textContent = message;
 	feedback.classList.toggle("error", isError);
 }
 
 function updateCustomControlsVisibility() {
 	const controls = document.getElementById("custom-controls");
-	if (!controls) {
-		return;
-	}
+	if (!controls) return;
 
 	const isCustom = state.activeScenario === "custom-day";
 	controls.classList.toggle("hidden", !isCustom);
@@ -228,9 +398,7 @@ function resetCustomDayToDefault() {
 function fillCustomControls(config) {
 	const setValue = (key, value) => {
 		const input = document.getElementById(customInputMap[key]);
-		if (input) {
-			input.value = String(value);
-		}
+		if (input) input.value = String(value);
 	};
 
 	setValue("ordersBase", config.ordersBase);
@@ -353,9 +521,7 @@ function renderAlerts(alertData) {
 		const item = document.getElementById(`alert-item-${i + 1}`);
 		const time = document.getElementById(`alert-time-${i + 1}`);
 		const msg = document.getElementById(`alert-msg-${i + 1}`);
-		if (!item || !time || !msg) {
-			continue;
-		}
+		if (!item || !time || !msg) continue;
 
 		item.className = `alert-item${alertData[i].level ? ` ${alertData[i].level}` : ""}`;
 		time.className = `alert-time${alertData[i].timeClass ? ` ${alertData[i].timeClass}` : ""}`;
@@ -370,16 +536,12 @@ function randomBetween(min, max) {
 
 function pushHistory(history, value) {
 	history.push(value);
-	if (history.length > historySize) {
-		history.shift();
-	}
+	if (history.length > historySize) history.shift();
 }
 
 function renderSparkline(containerId, data, options = {}) {
 	const container = document.getElementById(containerId);
-	if (!container) {
-		return;
-	}
+	if (!container) return;
 
 	const minValue = options.min ?? Math.min(...data);
 	const maxValue = options.max ?? Math.max(...data);
@@ -401,31 +563,35 @@ function renderSparkline(containerId, data, options = {}) {
 			bar.style.backgroundColor = "var(--success)";
 		}
 
+		/* Tooltip */
+		const tooltip = document.createElement("div");
+		tooltip.className = "sparkline-tooltip";
+		tooltip.textContent = options.unit ? `${value} ${options.unit}` : String(value);
+		bar.appendChild(tooltip);
+
 		container.appendChild(bar);
 	});
 }
 
 function updateStatusBadge(robotLatency, wcuUsage, auroraCpu) {
 	const badge = document.querySelector(".status-badge");
-	if (!badge) {
-		return;
-	}
+	if (!badge) return;
 
 	badge.classList.remove("warning", "danger");
 
 	if (robotLatency >= 36 || wcuUsage >= 94 || auroraCpu >= 88) {
 		badge.classList.add("danger");
-		badge.textContent = "● SYSTEM CRITICAL (Tier 1)";
+		badge.textContent = "\u25CF SYSTEM CRITICAL (Tier 1)";
 		return;
 	}
 
 	if (robotLatency >= 33 || wcuUsage >= 88 || auroraCpu >= 82) {
 		badge.classList.add("warning");
-		badge.textContent = "● SYSTEM DEGRADED (Tier 2)";
+		badge.textContent = "\u25CF SYSTEM DEGRADED (Tier 2)";
 		return;
 	}
 
-	badge.textContent = "● SYSTEM STABLE (Tier 3)";
+	badge.textContent = "\u25CF SYSTEM STABLE (Tier 3)";
 }
 
 function evaluateOperationalState(metrics) {
@@ -466,9 +632,7 @@ function evaluateOperationalState(metrics) {
 
 function renderInferredState(assessment) {
 	const stateEl = document.getElementById("inferred-state");
-	if (!stateEl) {
-		return;
-	}
+	if (!stateEl) return;
 
 	stateEl.classList.remove("color-success", "color-warning", "color-danger");
 	stateEl.classList.add(assessment.colorClass);
@@ -477,9 +641,7 @@ function renderInferredState(assessment) {
 
 function renderProjectedStateFromConfig(config) {
 	const inferenceEl = document.getElementById("custom-inference");
-	if (!inferenceEl) {
-		return;
-	}
+	if (!inferenceEl) return;
 
 	const ranges = config.ranges;
 	const metrics = {
@@ -514,21 +676,22 @@ function seedHistoryFromScenario(scenarioKey) {
 }
 
 function setScenario(scenarioKey) {
-	if (!scenarios[scenarioKey]) {
-		return;
-	}
+	if (!scenarios[scenarioKey]) return;
 
 	state.activeScenario = scenarioKey;
 	state.orders = scenarios[scenarioKey].ordersBase;
+	ordiniDisplayed = state.orders;
 	seedHistoryFromScenario(scenarioKey);
+
+	/* Reset prevValues per evitare delta assurdi tra scenari */
+	Object.keys(prevValues).forEach(k => delete prevValues[k]);
+
 	if (scenarioKey !== "custom-day") {
 		updateAlerts(scenarioKey);
 	}
 
 	const scenarioName = document.getElementById("scenario-name");
-	if (scenarioName) {
-		scenarioName.textContent = scenarios[scenarioKey].label;
-	}
+	if (scenarioName) scenarioName.textContent = scenarios[scenarioKey].label;
 
 	document.querySelectorAll(".scenario-btn").forEach((btn) => {
 		btn.classList.toggle("active", btn.dataset.scenario === scenarioKey);
@@ -544,9 +707,11 @@ function setScenario(scenarioKey) {
 	}
 }
 
+/* ── Dashboard update principale ── */
 function updateDashboard() {
 	const currentScenario = scenarios[state.activeScenario];
 	const ranges = currentScenario.ranges;
+	const sla = slaRanges[state.activeScenario] || slaRanges["custom-day"];
 
 	const apiReq = randomBetween(ranges.apiReq[0], ranges.apiReq[1]);
 	const kafkaMsg = randomBetween(ranges.kafkaMsg[0], ranges.kafkaMsg[1]);
@@ -556,7 +721,18 @@ function updateDashboard() {
 	const wanGbps = randomBetween(ranges.wanGbps[0], ranges.wanGbps[1]);
 	const ecsUsed = randomBetween(ranges.ecsUsed[0], ranges.ecsUsed[1]);
 
-	state.orders += randomBetween(ranges.ordersIncrement[0], ranges.ordersIncrement[1]);
+	/* SLA latenze dinamiche */
+	const apiTrackingLat = randomBetween(sla.apiTracking[0], sla.apiTracking[1]);
+	const auroraWriteLat = randomBetween(sla.auroraWrite[0], sla.auroraWrite[1]);
+	const kafkaIngestionLat = randomBetween(sla.kafkaIngestion[0], sla.kafkaIngestion[1]);
+	const kafkaLag = randomBetween(sla.kafkaLag[0], sla.kafkaLag[1]);
+
+	const wcuPct = (wcuUsed / 2000) * 100;
+	const ecsPct = (ecsUsed / 500) * 100;
+
+	/* Ordini con tetto giornaliero */
+	const increment = randomBetween(ranges.ordersIncrement[0], ranges.ordersIncrement[1]);
+	state.orders = Math.min(state.orders + increment, ORDERS_TARGET);
 
 	const throughputValue = Math.floor(apiReq * 0.82 + kafkaMsg / 20);
 	const loadIndex = Math.round((auroraCpu + wcuUsed / 20 + wanGbps) / 3);
@@ -565,21 +741,88 @@ function updateDashboard() {
 	pushHistory(state.latencyHistory, robotLat);
 	pushHistory(state.loadHistory, loadIndex);
 
-	document.getElementById("api-req").innerText = apiReq;
+	/* ── Aggiorna valori ── */
+	animateOrdini(state.orders);
+
+	/* Progress bar ordini verso target */
+	const ordiniPct = Math.min((state.orders / ORDERS_TARGET) * 100, 100);
+	document.getElementById("ordini-fill").style.width = `${ordiniPct}%`;
+	applyBarColor("ordini-fill", ordiniPct >= 95 ? "warning" : "");
+
+	document.getElementById("api-req").innerText = apiReq.toLocaleString("it-IT");
 	document.getElementById("api-req-fill").style.width = `${Math.min((apiReq / 2000) * 100, 100)}%`;
+
 	document.getElementById("kafka-msg").innerText = `${kafkaMsg.toLocaleString("it-IT")} msg/sec`;
-	document.getElementById("ordini-count").innerText = state.orders.toLocaleString("it-IT");
+
 	document.getElementById("robot-latency").innerText = `${robotLat} ms`;
+
+	/* SLA latenze */
+	document.getElementById("api-tracking-latency").innerText = `${apiTrackingLat} ms`;
+	document.getElementById("aurora-write-latency").innerText = `${auroraWriteLat} ms`;
+	document.getElementById("kafka-ingestion-latency").innerText = `${kafkaIngestionLat} ms`;
+
+	/* Kafka lag */
+	document.getElementById("kafka-lag").innerText = `${kafkaLag} ms`;
 
 	document.getElementById("aurora-cpu").innerText = `${auroraCpu}%`;
 	document.getElementById("aurora-fill").style.width = `${auroraCpu}%`;
+
 	document.getElementById("wcu-value").innerText = `${wcuUsed.toLocaleString("it-IT")} / 2.000 WCU`;
-	document.getElementById("wcu-fill").style.width = `${Math.min((wcuUsed / 2000) * 100, 100)}%`;
+	document.getElementById("wcu-fill").style.width = `${Math.min(wcuPct, 100)}%`;
+
 	document.getElementById("wan-gbps").innerText = `${wanGbps} Gbps`;
 	document.getElementById("wan-fill").style.width = `${Math.min(wanGbps, 100)}%`;
-	document.getElementById("ecs-fill").style.width = `${Math.min((ecsUsed / 500) * 100, 100)}%`;
-	document.getElementById("ecs-used").innerText = `${ecsUsed} / 500`;
 
+	document.getElementById("ecs-used").innerText = `${ecsUsed} / 500`;
+	document.getElementById("ecs-fill").style.width = `${Math.min(ecsPct, 100)}%`;
+
+	/* ── Colori dinamici su tutte le metriche ── */
+	applyColor("api-req", getColorClass(apiReq, "apiReq"));
+	applyColor("kafka-msg", getColorClass(kafkaMsg, "kafkaMsg"));
+	applyColor("robot-latency", getColorClass(robotLat, "robotLat"));
+	applyColor("aurora-cpu", getColorClass(auroraCpu, "auroraCpu"));
+	applyColor("wcu-value", getColorClass(wcuPct, "wcuPct"));
+	applyColor("wan-gbps", getColorClass(wanGbps, "wanGbps"));
+	applyColor("ecs-used", getColorClass(ecsPct, "ecsPct"));
+
+	/* Colori SLA */
+	applyColor("api-tracking-latency", getColorClass(apiTrackingLat, "apiTrackingLat"));
+	applyColor("aurora-write-latency", getColorClass(auroraWriteLat, "auroraWriteLat"));
+	applyColor("kafka-ingestion-latency", getColorClass(kafkaIngestionLat, "kafkaIngestionLat"));
+	applyColor("kafka-lag", getColorClass(kafkaLag, "kafkaLag"));
+
+	/* ── Colori dinamici sulle progress bar ── */
+	applyBarColor("api-req-fill", getBarClass(apiReq, "apiReq"));
+	applyBarColor("aurora-fill", getBarClass(auroraCpu, "auroraCpu"));
+	applyBarColor("wcu-fill", getBarClass(wcuPct, "wcuPct"));
+	applyBarColor("wan-fill", getBarClass(wanGbps, "wanGbps"));
+	applyBarColor("ecs-fill", getBarClass(ecsPct, "ecsPct"));
+
+	/* ── Delta / trend indicators ── */
+	renderDelta("delta-api-req", apiReq, prevValues.apiReq, false);
+	renderDelta("delta-kafka-msg", kafkaMsg, prevValues.kafkaMsg, false);
+	renderDelta("delta-robot-lat", robotLat, prevValues.robotLat, false);
+	renderDelta("delta-aurora-cpu", auroraCpu, prevValues.auroraCpu, false);
+	renderDelta("delta-wcu", wcuUsed, prevValues.wcuUsed, false);
+	renderDelta("delta-wan", wanGbps, prevValues.wanGbps, false);
+	renderDelta("delta-ecs", ecsUsed, prevValues.ecsUsed, false);
+	renderDelta("delta-api-tracking", apiTrackingLat, prevValues.apiTrackingLat, false);
+	renderDelta("delta-aurora-write", auroraWriteLat, prevValues.auroraWriteLat, false);
+	renderDelta("delta-kafka-ingestion", kafkaIngestionLat, prevValues.kafkaIngestionLat, false);
+
+	/* Salva valori correnti come precedenti */
+	prevValues.apiReq = apiReq;
+	prevValues.kafkaMsg = kafkaMsg;
+	prevValues.robotLat = robotLat;
+	prevValues.auroraCpu = auroraCpu;
+	prevValues.wcuUsed = wcuUsed;
+	prevValues.wanGbps = wanGbps;
+	prevValues.ecsUsed = ecsUsed;
+	prevValues.apiTrackingLat = apiTrackingLat;
+	prevValues.auroraWriteLat = auroraWriteLat;
+	prevValues.kafkaIngestionLat = kafkaIngestionLat;
+
+	/* ── Stato operativo ── */
 	const assessment = evaluateOperationalState({
 		apiReq,
 		kafkaMsg,
@@ -591,34 +834,43 @@ function updateDashboard() {
 	});
 	renderInferredState(assessment);
 
+	/* ── Sparkline con tooltip ── */
 	renderSparkline("throughput-sparkline", state.throughputHistory, {
 		min: 450,
 		max: 2000,
 		warningThreshold: 1200,
-		dangerThreshold: 1650
+		dangerThreshold: 1650,
+		unit: ""
 	});
 
 	renderSparkline("latency-sparkline", state.latencyHistory, {
 		min: 20,
 		max: 45,
 		warningThreshold: 33,
-		dangerThreshold: 36
+		dangerThreshold: 36,
+		unit: "ms"
 	});
 
 	renderSparkline("load-sparkline", state.loadHistory, {
 		min: 50,
 		max: 95,
 		warningThreshold: 75,
-		dangerThreshold: 85
+		dangerThreshold: 85,
+		unit: ""
 	});
 
-	updateStatusBadge(robotLat, (wcuUsed / 2000) * 100, auroraCpu);
+	/* ── Badge e alert ── */
+	updateStatusBadge(robotLat, wcuPct, auroraCpu);
 
 	if (state.activeScenario === "custom-day") {
 		renderAlerts(buildCustomAlerts({ robotLat, wcuUsed, auroraCpu, wanGbps, ecsUsed }));
 	}
+
+	/* Timestamp aggiornamento */
+	updateLastUpdateTimestamp();
 }
 
+/* ── Event listeners ── */
 document.querySelectorAll(".scenario-btn").forEach((button) => {
 	button.addEventListener("click", () => {
 		setScenario(button.dataset.scenario);
@@ -632,14 +884,10 @@ fillCustomControls(scenarios["custom-day"]);
 
 Object.values(customInputMap).forEach((inputId) => {
 	const input = document.getElementById(inputId);
-	if (!input) {
-		return;
-	}
+	if (!input) return;
 
 	input.addEventListener("input", () => {
-		if (state.activeScenario !== "custom-day") {
-			return;
-		}
+		if (state.activeScenario !== "custom-day") return;
 
 		const parsed = parseCustomControls();
 		if (!parsed.ok) {
@@ -660,6 +908,13 @@ if (customResetBtn) {
 	customResetBtn.addEventListener("click", resetCustomDayToDefault);
 }
 
+/* Play/pause */
+document.getElementById("sim-toggle").addEventListener("click", toggleSimulation);
+
+/* ── Init ── */
+ordiniDisplayed = scenarios["custom-day"].ordersBase;
 setScenario("custom-day");
 updateDashboard();
-setInterval(updateDashboard, 2000);
+updateClock();
+setInterval(updateClock, 1000);
+simIntervalId = setInterval(updateDashboard, 2000);

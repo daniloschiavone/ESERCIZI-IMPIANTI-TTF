@@ -14,7 +14,15 @@
             <h1>LogisTech - IT Operations Hub</h1>
             <div class="kpi-label">Region: eu-south-1 (Milano) | Edge: 12 FC Attivi</div>
         </div>
-        <div class="status-badge">● SYSTEM DEGRADED (Tier 2)</div>
+        <div class="header-right">
+            <div class="clock-display" id="live-clock">--:--:-- CET</div>
+            <div class="last-update" id="last-update">Aggiornato --</div>
+            <button type="button" class="sim-toggle" id="sim-toggle">
+                <span class="sim-toggle-icon" id="sim-toggle-icon">⏸</span>
+                <span id="sim-toggle-label">Pausa</span>
+            </button>
+            <div class="status-badge">● SYSTEM DEGRADED (Tier 2)</div>
+        </div>
     </header>
 
     <div class="dashboard-grid">
@@ -105,11 +113,15 @@
             <div class="kpi-label">Ordini Elaborati Oggi</div>
             <div class="kpi-value" id="ordini-count">485.230</div>
             <div class="kpi-label">Target: 700.000 / giorno</div>
+            <div class="progress-bar-bg mt-15"><div class="progress-bar-fill" id="ordini-fill" style="width: 69%;"></div></div>
             
             <div class="mt-24">
                 <div class="metric-row">
                     <span>API Gateway (Req/Sec)</span>
-                    <span id="api-req" class="color-success">620</span>
+                    <div class="metric-with-delta">
+                        <span id="api-req" class="color-success">620</span>
+                        <span class="delta-value delta-flat" id="delta-api-req">--</span>
+                    </div>
                 </div>
                 <div class="progress-bar-bg"><div class="progress-bar-fill" id="api-req-fill" style="width: 31%;"></div></div>
             </div>
@@ -124,16 +136,32 @@
             <h2>Latenze Operative (SLA)</h2>
             <div class="metric-row">
                 <span>API Tracking (GET) p95</span>
-                <span class="color-success">85 ms</span> </div>
+                <div class="metric-with-delta">
+                    <span id="api-tracking-latency" class="color-success">85 ms</span>
+                    <span class="delta-value delta-flat" id="delta-api-tracking">--</span>
+                </div>
+            </div>
             <div class="metric-row">
                 <span>Aurora DB Write Latency p99</span>
-                <span class="color-warning">45 ms</span> </div>
+                <div class="metric-with-delta">
+                    <span id="aurora-write-latency" class="color-warning">45 ms</span>
+                    <span class="delta-value delta-flat" id="delta-aurora-write">--</span>
+                </div>
+            </div>
             <div class="metric-row">
                 <span>Kafka Event Ingestion p99</span>
-                <span class="color-success">18 ms</span> </div>
+                <div class="metric-with-delta">
+                    <span id="kafka-ingestion-latency" class="color-success">18 ms</span>
+                    <span class="delta-value delta-flat" id="delta-kafka-ingestion">--</span>
+                </div>
+            </div>
             <div class="metric-row section-divider mt-20 pt-10">
                 <span>EDGE: Robot AMR Control Loop</span>
-                <span class="color-danger" id="robot-latency">35 ms</span> </div>
+                <div class="metric-with-delta">
+                    <span id="robot-latency" class="color-danger">35 ms</span>
+                    <span class="delta-value delta-flat" id="delta-robot-lat">--</span>
+                </div>
+            </div>
 
             <div class="mini-chart-block">
                 <div class="kpi-label">Trend Latenza Robot (ultimi 30 min)</div>
@@ -145,19 +173,28 @@
             <h2>Carico Infrastrutturale</h2>
             <div class="metric-row">
                 <span>ECS Fargate (Task Attivi)</span>
-                <span id="ecs-used">380 / 500</span>
+                <div class="metric-with-delta">
+                    <span id="ecs-used">380 / 500</span>
+                    <span class="delta-value delta-flat" id="delta-ecs">--</span>
+                </div>
             </div>
             <div class="progress-bar-bg"><div class="progress-bar-fill" id="ecs-fill" style="width: 76%;"></div></div>
 
             <div class="metric-row mt-15">
                 <span>Aurora PostgreSQL CPU (Writer)</span>
-                <span class="color-warning" id="aurora-cpu">82%</span>
+                <div class="metric-with-delta">
+                    <span id="aurora-cpu" class="color-warning">82%</span>
+                    <span class="delta-value delta-flat" id="delta-aurora-cpu">--</span>
+                </div>
             </div>
             <div class="progress-bar-bg"><div class="progress-bar-fill warning" id="aurora-fill" style="width: 82%;"></div></div>
 
             <div class="metric-row mt-15">
                 <span>Direct Connect WAN (FC Milano 1)</span>
-                <span class="color-danger" id="wan-gbps">58 Gbps</span>
+                <div class="metric-with-delta">
+                    <span id="wan-gbps" class="color-danger">58 Gbps</span>
+                    <span class="delta-value delta-flat" id="delta-wan">--</span>
+                </div>
             </div>
             <div class="progress-bar-bg"><div class="progress-bar-fill danger" id="wan-fill" style="width: 58%;"></div></div>
 
@@ -171,13 +208,19 @@
             <h2>Stato Code (Digitali & Fisiche)</h2>
             <div class="metric-row">
                 <span>Kafka MSK [package-tracking]</span>
-                <span id="kafka-msg">5.890 msg/sec</span>
+                <div class="metric-with-delta">
+                    <span id="kafka-msg">5.890 msg/sec</span>
+                    <span class="delta-value delta-flat" id="delta-kafka-msg">--</span>
+                </div>
             </div>
-            <div class="kpi-label mb-15">Lag consumer: 0 ms</div>
+            <div class="kpi-label mb-15">Lag consumer: <span id="kafka-lag">0 ms</span></div>
 
             <div class="metric-row">
                 <span>DynamoDB (WCU Utilizzate)</span>
-                <span id="wcu-value">1.850 / 2.000 WCU</span>
+                <div class="metric-with-delta">
+                    <span id="wcu-value">1.850 / 2.000 WCU</span>
+                    <span class="delta-value delta-flat" id="delta-wcu">--</span>
+                </div>
             </div>
             <div class="progress-bar-bg"><div class="progress-bar-fill warning" id="wcu-fill" style="width: 92%;"></div></div>
             

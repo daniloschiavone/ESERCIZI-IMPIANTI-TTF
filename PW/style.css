@@ -22,6 +22,27 @@ body {
 	padding: 20px;
 }
 
+/* ── Tabular nums per tutte le metriche ── */
+.kpi-value,
+.metric-row span:last-child,
+.delta-value,
+.clock-display,
+#ordini-count,
+#api-req,
+#kafka-msg,
+#robot-latency,
+#aurora-cpu,
+#wcu-value,
+#wan-gbps,
+#ecs-used,
+#api-tracking-latency,
+#aurora-write-latency,
+#kafka-ingestion-latency,
+#kafka-lag {
+	font-variant-numeric: tabular-nums lining-nums;
+}
+
+/* ── Header ── */
 header {
 	display: flex;
 	justify-content: space-between;
@@ -38,6 +59,60 @@ header h1 {
 	color: var(--accent);
 }
 
+.header-right {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	flex-shrink: 0;
+}
+
+/* ── Orologio live ── */
+.clock-display {
+	font-size: 0.92rem;
+	color: var(--text-muted);
+	font-weight: 600;
+	white-space: nowrap;
+}
+
+/* ── Timestamp ultimo aggiornamento ── */
+.last-update {
+	font-size: 0.78rem;
+	color: var(--text-muted);
+	white-space: nowrap;
+}
+
+/* ── Bottone play/pause ── */
+.sim-toggle {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 5px 12px;
+	border-radius: 6px;
+	border: 1px solid var(--accent);
+	background: rgba(59, 130, 246, 0.15);
+	color: var(--text-main);
+	font-size: 0.82rem;
+	font-weight: 600;
+	cursor: pointer;
+	transition: background 0.2s ease, border-color 0.2s ease;
+	white-space: nowrap;
+}
+
+.sim-toggle:hover {
+	background: rgba(59, 130, 246, 0.3);
+}
+
+.sim-toggle.paused {
+	border-color: var(--warning);
+	background: rgba(245, 158, 11, 0.18);
+}
+
+.sim-toggle-icon {
+	font-size: 1rem;
+	line-height: 1;
+}
+
+/* ── Status badge con transizioni e glow ── */
 .status-badge {
 	background: rgba(16, 185, 129, 0.2);
 	color: var(--success);
@@ -46,27 +121,38 @@ header h1 {
 	font-weight: bold;
 	font-size: 0.9rem;
 	border: 1px solid var(--success);
-	transition: all 0.3s ease;
+	transition: all 0.4s ease;
+	white-space: nowrap;
 }
 
 .status-badge.warning {
 	color: var(--warning);
 	border-color: var(--warning);
 	background: rgba(245, 158, 11, 0.2);
+	box-shadow: 0 0 12px rgba(245, 158, 11, 0.25);
 }
 
 .status-badge.danger {
 	color: var(--danger);
 	border-color: var(--danger);
 	background: rgba(239, 68, 68, 0.2);
+	box-shadow: 0 0 16px rgba(239, 68, 68, 0.3);
+	animation: badge-pulse 2s ease-in-out infinite;
 }
 
+@keyframes badge-pulse {
+	0%, 100% { box-shadow: 0 0 12px rgba(239, 68, 68, 0.25); }
+	50% { box-shadow: 0 0 24px rgba(239, 68, 68, 0.5); }
+}
+
+/* ── Grid ── */
 .dashboard-grid {
 	display: grid;
 	grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
 	gap: 20px;
 }
 
+/* ── Card ── */
 .card {
 	background: var(--card-bg);
 	border: 1px solid var(--border);
@@ -83,10 +169,12 @@ header h1 {
 	padding-bottom: 10px;
 }
 
+/* ── KPI ── */
 .kpi-value {
 	font-size: 2rem;
 	font-weight: bold;
 	margin: 10px 0;
+	transition: color 0.4s ease;
 }
 
 .kpi-label {
@@ -94,17 +182,70 @@ header h1 {
 	color: var(--text-muted);
 }
 
+/* ── Metric rows con transizione colore ── */
 .metric-row {
 	display: flex;
 	justify-content: space-between;
+	align-items: baseline;
 	margin-bottom: 12px;
 	font-size: 0.95rem;
+	gap: 10px;
+}
+
+.metric-row > span:first-child {
+	flex-shrink: 1;
+	min-width: 0;
 }
 
 .metric-row span:last-child {
 	font-weight: bold;
+	transition: color 0.4s ease;
 }
 
+/* ── Delta / trend indicators ── */
+.metric-with-delta {
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
+	flex-shrink: 0;
+}
+
+.delta-value {
+	font-size: 0.68rem;
+	font-weight: 600;
+	padding: 1px 4px;
+	border-radius: 3px;
+	white-space: nowrap;
+	transition: color 0.3s ease, background-color 0.3s ease;
+}
+
+.delta-up {
+	color: var(--danger);
+	background: rgba(239, 68, 68, 0.12);
+}
+
+.delta-down {
+	color: var(--success);
+	background: rgba(16, 185, 129, 0.12);
+}
+
+.delta-flat {
+	color: var(--text-muted);
+	background: rgba(148, 163, 184, 0.1);
+}
+
+/* Per metriche dove "su" e' positivo (ordini, throughput) */
+.delta-up.positive {
+	color: var(--success);
+	background: rgba(16, 185, 129, 0.12);
+}
+
+.delta-down.positive {
+	color: var(--danger);
+	background: rgba(239, 68, 68, 0.12);
+}
+
+/* ── Progress bars ── */
 .progress-bar-bg {
 	background: #334155;
 	height: 8px;
@@ -116,7 +257,7 @@ header h1 {
 .progress-bar-fill {
 	background: var(--success);
 	height: 100%;
-	transition: width 0.3s ease;
+	transition: width 0.5s ease, background-color 0.4s ease;
 }
 
 .progress-bar-fill.warning {
@@ -127,14 +268,30 @@ header h1 {
 	background: var(--danger);
 }
 
+/* ── Alert con glow e animazioni ── */
 .alert-item {
-	border-left: 4px solid var(--warning);
-	padding-left: 10px;
+	border-left: 4px solid var(--success);
+	padding: 10px 10px 10px 14px;
 	margin-bottom: 15px;
+	border-radius: 0 6px 6px 0;
+	background: rgba(16, 185, 129, 0.05);
+	transition: all 0.4s ease;
+}
+
+.alert-item.warning {
+	border-left-color: var(--warning);
+	background: rgba(245, 158, 11, 0.06);
 }
 
 .alert-item.critical {
 	border-left-color: var(--danger);
+	background: rgba(239, 68, 68, 0.08);
+	animation: alert-glow 2.5s ease-in-out infinite;
+}
+
+@keyframes alert-glow {
+	0%, 100% { background: rgba(239, 68, 68, 0.06); }
+	50% { background: rgba(239, 68, 68, 0.14); }
 }
 
 .alert-time {
@@ -149,8 +306,10 @@ header h1 {
 .alert-msg {
 	font-size: 0.95rem;
 	margin-top: 4px;
+	line-height: 1.45;
 }
 
+/* ── Colori semantici ── */
 .color-success {
 	color: var(--success);
 }
@@ -163,6 +322,7 @@ header h1 {
 	color: var(--danger);
 }
 
+/* ── Sparkline ── */
 .mini-chart-block {
 	margin-top: 16px;
 }
@@ -177,6 +337,7 @@ header h1 {
 	gap: 2px;
 	padding: 6px;
 	background: rgba(15, 23, 42, 0.45);
+	position: relative;
 }
 
 .sparkline-bar {
@@ -185,8 +346,36 @@ header h1 {
 	min-height: 3px;
 	background: var(--success);
 	transition: height 0.3s ease, background-color 0.3s ease;
+	cursor: crosshair;
+	position: relative;
 }
 
+/* ── Sparkline tooltip ── */
+.sparkline-tooltip {
+	position: absolute;
+	bottom: calc(100% + 6px);
+	left: 50%;
+	transform: translateX(-50%);
+	background: #0f172a;
+	color: var(--text-main);
+	border: 1px solid var(--border);
+	border-radius: 4px;
+	padding: 3px 7px;
+	font-size: 0.72rem;
+	font-weight: 600;
+	white-space: nowrap;
+	pointer-events: none;
+	z-index: 20;
+	font-variant-numeric: tabular-nums;
+	opacity: 0;
+	transition: opacity 0.15s ease;
+}
+
+.sparkline-bar:hover .sparkline-tooltip {
+	opacity: 1;
+}
+
+/* ── Layout helpers ── */
 .full-span {
 	grid-column: 1 / -1;
 }
@@ -195,27 +384,13 @@ header h1 {
 	border-top: 1px solid var(--border);
 }
 
-.mt-24 {
-	margin-top: 24px;
-}
+.mt-24 { margin-top: 24px; }
+.mt-20 { margin-top: 20px; }
+.mt-15 { margin-top: 15px; }
+.pt-10 { padding-top: 10px; }
+.mb-15 { margin-bottom: 15px; }
 
-.mt-20 {
-	margin-top: 20px;
-}
-
-.mt-15 {
-	margin-top: 15px;
-}
-
-.pt-10 {
-	padding-top: 10px;
-}
-
-.mb-15 {
-	margin-bottom: 15px;
-}
-
-
+/* ── Scenario controls ── */
 .scenario-controls {
 	padding: 10px 14px;
 	display: flex;
@@ -253,6 +428,7 @@ header h1 {
 	font-weight: 600;
 }
 
+/* ── Custom controls ── */
 .custom-controls {
 	padding: 12px;
 	border: 1px solid var(--border);
@@ -281,6 +457,13 @@ header h1 {
 	background: rgba(15, 23, 42, 0.9);
 	color: var(--text-main);
 	font-size: 0.92rem;
+	outline: none;
+	transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.custom-grid input:focus {
+	border-color: var(--accent);
+	box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
 }
 
 .custom-feedback {
@@ -321,6 +504,11 @@ header h1 {
 	header {
 		flex-direction: column;
 		align-items: flex-start;
+	}
+
+	.header-right {
+		flex-wrap: wrap;
+		gap: 8px;
 	}
 
 	.status-badge {
