@@ -18,6 +18,88 @@
     </header>
 
     <div class="dashboard-grid">
+        <div class="card full-span">
+            <h2>Simulazione Eventi di Picco</h2>
+            <div class="kpi-label">Seleziona uno scenario per simulare impatto su carico, code e alert operativi.</div>
+            <div class="scenario-controls mt-15">
+                <button type="button" class="scenario-btn active" data-scenario="custom-day">Custom Load Day</button>
+                <button type="button" class="scenario-btn" data-scenario="black-friday">Black Friday</button>
+                <button type="button" class="scenario-btn" data-scenario="prime-day">Prime Day Sales</button>
+                <button type="button" class="scenario-btn" data-scenario="big-deal-days">Prime Big Deal Days</button>
+            </div>
+            <div class="scenario-current mt-15">Scenario attivo: <span id="scenario-name">Custom Load Day</span></div>
+
+            <div id="custom-controls" class="custom-controls mt-15">
+                <div class="kpi-label">Configura i parametri live del tuo Custom Load Day (salvataggio automatico locale).</div>
+                <div class="custom-grid mt-15">
+                    <label>Ordini base
+                        <input id="custom-orders-base" type="number" min="1" step="1">
+                    </label>
+
+                    <label>API req/sec min
+                        <input id="custom-api-min" type="number" min="0" step="1">
+                    </label>
+                    <label>API req/sec max
+                        <input id="custom-api-max" type="number" min="0" step="1">
+                    </label>
+
+                    <label>Kafka msg/sec min
+                        <input id="custom-kafka-min" type="number" min="0" step="1">
+                    </label>
+                    <label>Kafka msg/sec max
+                        <input id="custom-kafka-max" type="number" min="0" step="1">
+                    </label>
+
+                    <label>Robot latency ms min
+                        <input id="custom-robot-min" type="number" min="0" step="1">
+                    </label>
+                    <label>Robot latency ms max
+                        <input id="custom-robot-max" type="number" min="0" step="1">
+                    </label>
+
+                    <label>Aurora CPU % min
+                        <input id="custom-aurora-min" type="number" min="0" max="100" step="1">
+                    </label>
+                    <label>Aurora CPU % max
+                        <input id="custom-aurora-max" type="number" min="0" max="100" step="1">
+                    </label>
+
+                    <label>DynamoDB WCU min
+                        <input id="custom-wcu-min" type="number" min="0" step="1">
+                    </label>
+                    <label>DynamoDB WCU max
+                        <input id="custom-wcu-max" type="number" min="0" step="1">
+                    </label>
+
+                    <label>WAN Gbps min
+                        <input id="custom-wan-min" type="number" min="0" step="1">
+                    </label>
+                    <label>WAN Gbps max
+                        <input id="custom-wan-max" type="number" min="0" step="1">
+                    </label>
+
+                    <label>ECS task min
+                        <input id="custom-ecs-min" type="number" min="0" step="1">
+                    </label>
+                    <label>ECS task max
+                        <input id="custom-ecs-max" type="number" min="0" step="1">
+                    </label>
+
+                    <label>Incremento ordini min
+                        <input id="custom-inc-min" type="number" min="1" step="1">
+                    </label>
+                    <label>Incremento ordini max
+                        <input id="custom-inc-max" type="number" min="1" step="1">
+                    </label>
+                </div>
+                <div class="custom-actions mt-15">
+                    <button id="custom-reset-btn" type="button" class="scenario-btn reset-btn">Reset Custom Load Day</button>
+                </div>
+                <div id="custom-inference" class="custom-inference mt-15"></div>
+                <div id="custom-feedback" class="custom-feedback mt-15"></div>
+            </div>
+        </div>
+
         <div class="card">
             <h2>Ordini & Throughput</h2>
             <div class="kpi-label">Ordini Elaborati Oggi</div>
@@ -63,7 +145,7 @@
             <h2>Carico Infrastrutturale</h2>
             <div class="metric-row">
                 <span>ECS Fargate (Task Attivi)</span>
-                <span>380 / 500</span>
+                <span id="ecs-used">380 / 500</span>
             </div>
             <div class="progress-bar-bg"><div class="progress-bar-fill" id="ecs-fill" style="width: 76%;"></div></div>
 
@@ -100,27 +182,27 @@
             <div class="progress-bar-bg"><div class="progress-bar-fill warning" id="wcu-fill" style="width: 92%;"></div></div>
             
             <div class="metric-row mt-15">
-                <span>Code Fisiche (FC Milano 1 Nastri)</span>
-                <span class="color-warning">Jam Detected</span>
+                <span>Stato Operativo Stimato</span>
+                <span class="color-warning" id="inferred-state">In osservazione</span>
             </div>
         </div>
 
         <div class="card full-span">
             <h2>Event Log & Alert Critici</h2>
             
-            <div class="alert-item critical">
-                <div class="alert-time">Oggi, 19:42:15 CET | SOURCE: AWS Outposts FC Milano 1</div>
-                <div class="alert-msg"><strong>Robot AMR Latency Spike:</strong> Congestione WAN rilevata. Latenza controllo >12ms (35ms attuali). Robot in safety mode (0.5 m/s). <em>Mitigazione in corso: Prioritizzazione QoS.</em></div>
+            <div class="alert-item critical" id="alert-item-1">
+                <div class="alert-time" id="alert-time-1">Oggi, 19:42:15 CET | SOURCE: AWS Outposts FC Milano 1</div>
+                <div class="alert-msg" id="alert-msg-1"><strong>Robot AMR Latency Spike:</strong> Congestione WAN rilevata. Latenza controllo >12ms (35ms attuali). Robot in safety mode (0.5 m/s). <em>Mitigazione in corso: Prioritizzazione QoS.</em></div>
             </div>
 
-            <div class="alert-item warning">
-                <div class="alert-time">Oggi, 19:38:00 CET | SOURCE: Amazon DynamoDB</div>
-                <div class="alert-msg"><strong>Throttling Warning:</strong> Consumo WCU > 90% su tabella tracking. Provisioned capacity in esaurimento (1.850 WCU). Auto-scaling innescato ma in ritardo.</div>
+            <div class="alert-item warning" id="alert-item-2">
+                <div class="alert-time" id="alert-time-2">Oggi, 19:38:00 CET | SOURCE: Amazon DynamoDB</div>
+                <div class="alert-msg" id="alert-msg-2"><strong>Throttling Warning:</strong> Consumo WCU > 90% su tabella tracking. Provisioned capacity in esaurimento (1.850 WCU). Auto-scaling innescato ma in ritardo.</div>
             </div>
             
-            <div class="alert-item">
-                <div class="alert-time alert-time-success">Oggi, 19:15:00 CET | SOURCE: Auto-Scaling Group</div>
-                <div class="alert-msg">ECS Fargate scale-out completato. Aggiunti 50 task per picco serale ordini.</div>
+            <div class="alert-item" id="alert-item-3">
+                <div class="alert-time alert-time-success" id="alert-time-3">Oggi, 19:15:00 CET | SOURCE: Auto-Scaling Group</div>
+                <div class="alert-msg" id="alert-msg-3">ECS Fargate scale-out completato. Aggiunti 50 task per picco serale ordini.</div>
             </div>
         </div>
     </div>
